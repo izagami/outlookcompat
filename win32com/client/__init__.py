@@ -39,6 +39,9 @@ JST = _dt.timezone(_dt.timedelta(hours=9))
 FOLDER_IDS = {3: "Deleted Items", 4: "Outbox", 5: "Sent Items", 6: "Inbox", 9: "Calendar", 10: "Contacts", 16: "Drafts"}
 JA_NAMES = {"Deleted Items": "削除済みアイテム", "Outbox": "送信トレイ", "Sent Items": "送信済みアイテム", "Inbox": "受信トレイ",
             "Calendar": "予定表", "Contacts": "連絡先", "Drafts": "下書き"}
+# an IMAP account (the LAVIE test profile, 10-26) keeps calendar/contacts in local-only folders with this suffix
+if _os.environ.get("OUTLOOKCOMPAT_ACCOUNT", "imap") == "imap":
+    JA_NAMES.update({"Calendar": "予定表 (このコンピューターのみ)", "Contacts": "連絡先 (このコンピューターのみ)"})
 
 
 # ---------------------------------------------------------------- store
@@ -75,9 +78,11 @@ def _store():
 
 
 def _parse_time(v):
-    if isinstance(v, _dt.datetime):
-        return v if v.tzinfo else v.replace(tzinfo=JST)
-    return _dt.datetime.fromisoformat(str(v)).astimezone(JST) if "+" in str(v) else _dt.datetime.fromisoformat(str(v)).replace(tzinfo=JST)
+    """like pywin32 on a Japanese Windows (checked against LAVIE's Outlook 10-26): the LOCAL wall-clock time tagged as
+    UTC (+00:00) - 17:18 JST comes back as 17:18+00:00. Compare these as naive local times, not as UTC"""
+    d = v if isinstance(v, _dt.datetime) else _dt.datetime.fromisoformat(str(v))
+    d = d.astimezone(JST) if d.tzinfo else d
+    return d.replace(tzinfo=_dt.timezone.utc)
 
 
 # ---------------------------------------------------------------- items
